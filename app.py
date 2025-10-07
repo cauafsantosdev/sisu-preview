@@ -55,8 +55,8 @@ def load_model():
 @st.cache_data
 def load_data():
     """Loads and prepares the dataset to populate the filters."""
-    data_path = os.path.join('data', 'processed', 'final_data.parquet')
-    df_full = pd.read_parquet(data_path)
+    data_url = "https://github.com/cauafsantosdev/sisu-preview/releases/download/v1.0.0/final_data.parquet"
+    df_full = pd.read_parquet(data_url)
     df_specialist = df_full.query("ds_mod_concorrencia == 'AMPLA CONCORRÊNCIA' and qt_vagas_concorrencia >= 10").copy()
     return df_specialist
 
