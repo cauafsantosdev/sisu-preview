@@ -13,10 +13,9 @@ This project is a complete, end-to-end machine learning solution that predicts u
 
 You can access and interact with the live application deployed on Streamlit Community Cloud:
 
-**➡️ [Launch SISU Preview App](https://your-streamlit-app-url.streamlit.app/)** *(Note: Replace the URL above with your actual Streamlit app link after deployment.)*
+**➡️ [Launch SISU Preview App](https://sisu-preview.streamlit.app/)** 
 
-![SISU Preview App Screenshot](https://i.imgur.com/your-screenshot-url.png)
-*(Note: It's highly recommended to add a screenshot of your app here. You can upload an image to a service like Imgur and paste the link.)*
+![SISU Preview App Screenshot](https://i.imgur.com/hYZGjpz.png)
 
 ---
 
