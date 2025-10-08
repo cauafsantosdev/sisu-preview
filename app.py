@@ -13,37 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS injection to customize the colors and create a "dark purple" theme.
-st.markdown("""
-<style>
-    .main {
-        background-color: #0E0B16;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #1A1032;
-    }
-    body, h1, h2, h3, h4, h5, h6, p, .st-emotion-cache-16txtl3, .st-emotion-cache-1xarl3l {
-        color: #E0E0E0;
-    }
-    .stButton>button {
-        background-color: #7B2CBF;
-        color: white;
-        border: none;
-        border-radius: 8px;
-    }
-    .stButton>button:hover {
-        background-color: #9D4EDD;
-        color: white;
-    }
-    [data-testid="stMetricValue"] {
-        color: #A450F3;
-    }
-    [data-testid="stMetricDelta"] svg {
-        fill: #9D4EDD;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # @st.cache_resource and @st.cache_data ensure that the model and data are loaded only once.
 @st.cache_resource
 def load_model():
