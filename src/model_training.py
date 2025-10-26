@@ -24,14 +24,22 @@ print(f"Final dataset for training with {len(df_model)} rows.")
 TARGET = 'nu_notacorte'
 COLUMNS_TO_EXCLUDE = [
     'edicao', 'co_ies', 'no_ies', 'no_campus', 'co_curso',
-    'chave_curso', 'qt_inscricao', TARGET, 'ds_mod_concorrencia'
+    'chave_curso', 'qt_inscricao', TARGET, 'no_municipio_campus'
 ]
 features = [col for col in df_model.columns if col not in COLUMNS_TO_EXCLUDE]
 
 X = df_model[features].copy()
 y = df_model[TARGET]
 
-categorical_features = ['sg_ies', 'no_curso', 'ds_grau', 'ds_turno']
+categorical_features = [
+    'sg_ies', 
+    'no_curso', 
+    'ds_grau', 
+    'ds_turno', 
+    'no_campus',
+    'ds_mod_concorrencia',
+    'sg_uf_campus'
+]
 for col in categorical_features:
     X[col] = X[col].astype('category')
 

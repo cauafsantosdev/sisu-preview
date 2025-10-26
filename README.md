@@ -13,7 +13,11 @@ This project is a complete, end-to-end machine learning solution that predicts u
 
 You can access and interact with the live application deployed on Streamlit Community Cloud:
 
+<<<<<<< Updated upstream
 **➡️ [Launch SISU Preview App](https://sisu-preview.streamlit.app/)** 
+=======
+**➡️ [Launch SISU Preview App](https://sisu-preview.streamlit.app/)**
+>>>>>>> Stashed changes
 
 ![SISU Preview App Screenshot](https://i.imgur.com/hYZGjpz.png)
 
