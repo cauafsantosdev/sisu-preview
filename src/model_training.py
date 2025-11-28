@@ -1,67 +1,81 @@
-import pandas as pd
-import lightgbm as lgb
-import joblib
 import os
+import joblib
+import duckdb
+import numpy as np
+import lightgbm as lgb
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
-PROCESSED_DATA_PATH = 'data/processed/final_data.parquet'
-MODEL_OUTPUT_PATH = 'saved_models/lgbm_sisu_predictor.joblib'
+# Load data
+print("Loading DB sisu_data...")
+db_path = "data/database/sisu_preview.db"
+conn = duckdb.connect(database=str(db_path), read_only=True)
+df = conn.sql("SELECT * FROM sisu_data").df()
 
-print("Loading and preparing final data...")
-df = pd.read_parquet(PROCESSED_DATA_PATH)
+# Noise removal
+df = df[df["nu_notacorte"] != 0].copy()
 
-# Applying the filters
-df_cleaned = df[df['nu_notacorte'] != 0].copy()
-df_model = df_cleaned.query(
-    "`ds_mod_concorrencia` == 'AMPLA CONCORRÊNCIA' and `qt_vagas_concorrencia` >= 10"
-).copy()
+# Removing rows with missing values in "vagas_edicao_anterior" and "inscritos_edicao_anterior"
+df = df.dropna(subset=["vagas_edicao_anterior", "inscritos_edicao_anterior"]).copy()
 
-df_model = df_model.dropna(subset=['nota_edicao_anterior', 'vagas_edicao_anterior'])
+# Removing previous grade data leakage
+if "nota_edicao_anterior" in df.columns:
+    df = df.drop(columns=["nota_edicao_anterior"])
 
-print(f"Final dataset for training with {len(df_model)} rows.")
-
-# Feature and Target definition
-TARGET = 'nu_notacorte'
-COLUMNS_TO_EXCLUDE = [
-    'edicao', 'co_ies', 'no_ies', 'no_campus', 'co_curso',
-    'chave_curso', 'qt_inscricao', TARGET, 'no_municipio_campus'
+# Features and Target
+TARGET = "nu_notacorte"
+DROP_COLS = [
+    "edicao", "co_ies", "no_ies", "co_curso", "qt_inscricao", "ano", "__index_level_0__",
+    "chave_curso", "no_municipio_campus", "nu_notacorte"
 ]
-features = [col for col in df_model.columns if col not in COLUMNS_TO_EXCLUDE]
-
-X = df_model[features].copy()
-y = df_model[TARGET]
+features = [c for c in df.columns if c not in DROP_COLS]
 
 categorical_features = [
-    'sg_ies', 
-    'no_curso', 
-    'ds_grau', 
-    'ds_turno', 
-    'no_campus',
-    'ds_mod_concorrencia',
-    'sg_uf_campus'
+    "sg_ies", "no_curso", "no_campus", "ds_grau", "ds_turno", "sg_uf_campus", "regiao", "ds_mod_concorrencia"
 ]
 for col in categorical_features:
-    X[col] = X[col].astype('category')
+    if col in df.columns:
+        df[col] = df[col].astype("category")
 
-# Final Model Training
-print("\nStarting the training of the final optimized model...")
+X = df[features].copy()
+y = df[TARGET]
 
-# Using the best parameters discovered during the testing phase
-best_params = {
-    'n_estimators': 5000, 
-    'learning_rate': 0.01,
-    'random_state': 42
+# Model Training
+print("Training LightGBM model...")
+
+params = {
+    "learning_rate": 0.03,
+    "num_leaves": 512,
+    "max_depth": 8,
+    "n_estimators": 5000,
+    "min_child_samples": 25,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "feature_fraction": 0.9,
+    "reg_alpha": 0.6,
+    "reg_lambda": 1.2,
+    "min_split_gain": 0.2,
+    "random_state": 42,
+    "verbose": -1,
 }
 
-lgbm_final = lgb.LGBMRegressor(**best_params)
+model = lgb.LGBMRegressor(**params)
+model.fit(X, y, categorical_feature=categorical_features)
 
-# Training the model with ALL available and clean data
-lgbm_final.fit(X, y)
+# Performance Check
+test_mask = df["ano"] == df["ano"].max()
+X_test, y_test = X[test_mask], y[test_mask]
+preds = model.predict(X_test)
 
-print("Final training complete!")
+mae = mean_absolute_error(y_test, preds)
+rmse = np.sqrt(mean_squared_error(y_test, preds))
+r2 = r2_score(y_test, preds)
 
-# Saving the Model
-os.makedirs(os.path.dirname(MODEL_OUTPUT_PATH), exist_ok=True)
-joblib.dump(lgbm_final, MODEL_OUTPUT_PATH)
+print(f"\nResults (last year):")
+print(f"MAE: {mae:.2f} | RMSE: {rmse:.2f} | R²: {r2:.3f}")
 
-print(f"\nFinal optimized model saved successfully at: {MODEL_OUTPUT_PATH}")
+# Save Model
+os.makedirs("saved_models", exist_ok=True)
+path_out = "saved_models/lgbm_sisu_predictor.joblib"
+joblib.dump(model, path_out)
+print(f"\nModel saved in: {path_out}")

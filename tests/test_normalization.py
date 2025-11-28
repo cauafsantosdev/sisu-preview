@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from src.data_processing import normalize_concurrency, normalize_campus_name, create_course_key
+from src.data_processing import normalize_modality, normalize_campus_name, create_course_key
 
 
 @pytest.mark.parametrize("raw_string, expected_output", [
@@ -16,7 +16,7 @@ def test_normalize_concurrency(raw_string, expected_output):
     """
     Testing normalize_concurreny function with multiple cases
     """
-    result = normalize_concurrency(raw_string)
+    result = normalize_modality(raw_string)
     assert result == expected_output
 
 @pytest.mark.parametrize("raw_string, expected_output", [
