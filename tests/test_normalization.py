@@ -41,7 +41,6 @@ def fake_df():
     Fake DataFrame for testing create_course_key function
     """
     return pd.DataFrame({
-        'edicao': ['2023/1'],
         'co_ies': [12],
         'co_curso': [666], 
         'no_campus': ['CARREIROS'],
@@ -56,4 +55,4 @@ def test_create_course_key(fake_df):
     """
     fake_df['chave_curso'] = create_course_key(fake_df)
 
-    assert fake_df['chave_curso'].loc[0] == "2023/1_12_666_CARREIROS_BACHARELADO_INTEGRAL_AC"
+    assert fake_df['chave_curso'].loc[0] == "12_666_CARREIROS_BACHARELADO_INTEGRAL_AC"
