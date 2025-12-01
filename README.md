@@ -13,41 +13,40 @@ This project is a complete, end-to-end machine learning solution that predicts u
 
 You can access and interact with the live application deployed on Streamlit Community Cloud:
 
-<<<<<<< Updated upstream
-**➡️ [Launch SISU Preview App](https://sisu-preview.streamlit.app/)** 
-=======
 **➡️ [Launch SISU Preview App](https://sisu-preview.streamlit.app/)**
->>>>>>> Stashed changes
 
-![SISU Preview App Screenshot](https://i.imgur.com/hYZGjpz.png)
+![SISU Preview App Screenshot 1](https://i.imgur.com/wt99gIf.png)
+![SISU Preview App Screenshot 2](https://i.imgur.com/Wna1eAY.png)
+![SISU Preview App Screenshot 3](https://i.imgur.com/j6yNWEW.png)
 
 ---
 
 ## Project Overview
 
-Predicting the cutoff scores for Brazil's highly competitive university selection process (SISU) is a major challenge for prospective students. These scores are volatile and depend on a lot of factors. This project aims to provide a data-driven estimate to help students gauge their chances and make informed decisions.
+Predicting cutoff scores for Brazil's highly competitive university selection process (SISU) is a complex challenge due to volatility and distinct regional factors. This project aims to provide a data-driven estimate to help prospective students gauge their chances across all admission categories.
 
-The core of the project is a LightGBM regression model trained on a historical dataset spanning from 2019 to 2025. However, the most significant part of this project was not just training a model, but the iterative process of analysis, hypothesis testing, and refinement to achieve a useful level of accuracy.
+The core is a Global LightGBM regression model trained on a rich historical dataset (2019–2025). The project evolved from a simple linear predictor into a robust ML pipeline, utilizing DuckDB for heavy data transformations and Window Functions to capture temporal trends, ensuring accurate predictions for both General Admission (Ampla Concorrência) and Affirmative Action Quotas (Cotas) through and iterative process of analysis, hypothesis testing, and refinement.
 
 ---
 
 ## Key Features
 
-* **Interactive Prediction:** Users can select a university, course, degree, and shift to get a score estimate.
-* **Historical Context:** The app displays a Plotly chart showing the historical trend of the selected course's cutoff score.
-* **Specialist Model:** The final model is an expert, trained specifically on the most competitive and data-rich segment: "Ampla Concorrência" (General Admission).
-* **Transparent Performance:** The application clearly communicates the model's average error margin, promoting a realistic understanding of the prediction.
+* **Universal Prediction:** Unlike simple average-based tools, this model predicts scores for all modalities (Racial, PwD, Income-based), adapting to the specific competitive context of each category.
+* **Interactive Simulation:** Users can filter by University, Course, Level, Campus, Shift and Modality to get real-time estimates of multiple courses.
+* **Historical Trends:** Displays interactive Plotly charts showing the score evolution over the years.
+* **Exportable Results:** Generates an exportable table at the bottom of the page with detailed results for all predictions.
+* **Robust Engineering:** Powered by a DuckDB backend that handles complex joins between Vacancy data (weights/minimums) and historical scores without memory overhead.
 
 ---
 
 ## Tech Stack
 
-* **Programming Language:** Python
-* **Data Manipulation & Analysis:** Pandas
-* **Machine Learning:** Scikit-learn, LightGBM
-* **Web Application:** Streamlit
-* **Data Visualization:** Matplotlib, Seaborn, Plotly Express
-* **Data Storage:** Parquet
+* **Core:** Python 3.10+
+* **Data Engineering:** DuckDB (OLAP SQL), Pandas, Parquet
+* **Machine Learning:** LightGBM, Scikit-learn
+* **Web App:** Matplotlib, Seaborn, Streamlit
+* **Visualization:** Plotly Express
+* **CI/CD & Quality:** GitHub Actions, Pytest
 
 ---
 
@@ -59,22 +58,47 @@ This project's value lies in its iterative development cycle.
 
 The initial approach was to train a single LightGBM model on the entire dataset, including all admission categories (affirmative action quotas, etc.).
 
-* **Result:** This model was impractical, with a **Mean Absolute Error (MAE) of ~64 points**. An error this large makes the predictions unreliable.
+* **Result:** This model was impractical, with a **Mean Absolute Error (MAE) of ~25 points**. An error this large makes the predictions unreliable.
 
-### 2. Focus on General Admission
+### 2. The MVP (Focus on General Admission)
 
-After analyzing the baseline's poor performance, the hypothesis was that the high variance and noise from sparse data in affirmative action categories were polluting the model's learning process.
+To validate feasibility, the problem was simplified. We isolated "Ampla Concorrência" (General Admission) data and removed outliers (cutoff scores of 0.0).
 
-* **Action:** A new strategy was adopted. The problem was simplified by training a **specialist model** focused only on "Ampla Concorrência" (General Admission) for courses with 10 or more spots.
-* **Result:** This was a major success. The MAE dropped by over 50% to **~30 points**, validating the hypothesis that isolating a cleaner, more homogeneous data segment was the correct approach.
+* **Action:** Trained a specialist model on this cleaner segment with a quick hyperparemeter tuning to find the optimal settings for `n_estimators` and `learning_rate`.
+* **Result:** Success. The MAE dropped to  **~17 points**, proving the model could learn effectively when variance was controlled. However, it lacked historical context and support for quotas.
 
-### 3. Error Analysis & Hyperparameter Tuning
+### 3. The Engineering Overhaul (DuckDB & Data Integrity)
 
-To further improve, a deep-dive error analysis was conducted.
+To generalize the model for all modalities, we needed a robust data architecture.
 
-* **Insight:** The analysis revealed that the model's largest errors were on data points where the actual cutoff score was `0.0`, which likely represents data anomalies or non-competitive scenarios. These outliers were removed in a final data-cleaning step.
-* **Action:** A quick hyperparameter tuning round was performed to find the optimal settings for `n_estimators` and `learning_rate`.
-* **Final Result:** The final, optimized specialist model achieved a **MAE of ~16 points** and an **R² of 0.89** on the test set, transforming it into a genuinely useful predictive tool.
+* **Action:**
+  * Migrated the pipeline to DuckDB to handle complex joins between Cutoff and Vacancies datasets, enabling efficient feature creation directly in SQL.
+  * Implemented SQL Window Functions to create Lag Features (previous years' scores) and historical trends.
+
+### 4. Experimenting with Delta Targets (Failed Hypothesis)
+
+With clean data, we attempted to predict year-over-year changes (delta) instead of absolute scores to reduce location bias.
+
+* **Hypothesis:** Predicting the change would better capture shocks in demand.
+* **Outcome:** The model collapsed to tiny adjustments near zero or exploded for sparse quotas.
+* **Decision:** Abandoned Delta targets. Reverted to predicting Absolute Scores, but kept the new features derived during this phase (rolling trends, demand ratios).
+
+### 5. Refining the Signal: Leakage Removal & The Global Model
+
+Deep diagnostics revealed that the model was "cheating" by relying too heavily on the direct previous year's score (`nota_edicao_anterior`).
+
+* **Action:**
+  * **Leakage Fix:** Removed the direct lag variable from training, replacing it with derived features (relative deltas, rolling means) to force the model to learn patterns rather than just copying values.
+  * **Consolidation:** Instead of separate models for each quota, we trained a single, robust Global LightGBM Model**.**
+* **Why Global Worked:** By encoding modality as a categorical feature, the global model leveraged the massive dataset to stabilize predictions for sparse quotas.
+
+### 6. Final Production State
+
+The system is now a production-ready forecasting tool.
+
+* **Performance:** **~6 points** **MAE** with **0.990 R²**.
+* **Reliability:** Explicit column selection prevents silent leaks, and a deterministic SQL pipeline ensures data consistency.
+* **Inference:** The system builds plausible synthetic "future rows" for 2026 using the latest available context, ready for deployment.
 
 ---
 
@@ -82,20 +106,23 @@ To further improve, a deep-dive error analysis was conducted.
 
 ```
 sisu-preview/
+├── .github/
+│   └── workflows/      # CI Pipeline (tests)
+├── .streamlit/         # Streamlit configuration
 ├── data/
-│   ├── raw/
-│   └── processed/
-├── notebooks/
-│   ├── 01_data_analysis.ipynb
-│   └── 02_model_evolution.ipynb
+│   ├── raw/            # Source XLSX files (not committed)
+│   ├── processed/      # Cleaned Parquet checkpoints
+│   └── database/       # DuckDB database file (sisu_preview.db)
+├── scripts/
+│   └── build_database.py  # Orchestrator: builds the DB from Parquets
 ├── src/
-│   ├── data_processing.py
-│   └── model_training.py
+│   ├── data_processing.py # Raw data cleaning logic
+│   └── model_training.py  # Model training & evaluation logic
+├── tests/                 # Pytest suite
 ├── saved_models/
 │   └── lgbm_sisu_predictor.joblib
-├── app.py
+├── app.py                 # Streamlit frontend
 ├── requirements.txt
-├── LICENSE
 └── README.md
 ```
 
@@ -127,11 +154,17 @@ To run this project on your local machine, follow these steps:
    ```bash
    pip install -r requirements.txt
    ```
-4. **Run the Streamlit application:**
+4. **Build the Database:**
 
-   ```bash
+```bash
+  python -m scripts.build_database
+```
+
+5. **Run the Streamlit application:**
+
+```bash
    streamlit run app.py
-   ```
+```
 
    The application should open in your web browser.
 
